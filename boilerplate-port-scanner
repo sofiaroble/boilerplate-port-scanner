@@ -1,0 +1,56 @@
+import socket
+import common_ports
+
+
+def is_valid_ip_address(ip):
+    ip_parts = ip.split(".")
+    if len(ip_parts) != 4:
+        return False
+    for part in ip_parts:
+        if not part.isdigit():
+            return False
+        num = int(part)
+        if num < 0 or num > 255:  # Check for leading zeros
+            return False
+    return True
+
+def get_open_ports(target, port_range, verbose=False):
+    # Check if the target is a malformed IP address
+    ip_parts = target.split(".")
+    if len(ip_parts) == 4:
+        for part in ip_parts:
+            if not part.isdigit() or int(part) < 0 or int(part) > 255:
+                return "Error: Invalid IP address"
+    
+    # Try to resolve target as a hostname
+    try:
+        ip_address = socket.gethostbyname(target)
+        fqdn = socket.getfqdn(target)
+    except socket.gaierror:
+        # It's not a valid hostname
+        return "Error: Invalid hostname"
+
+
+    open_ports = []
+    for port in range(port_range[0], port_range[1] + 1):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.5)
+        result = sock.connect_ex((ip_address, port))
+        sock.close()
+        if result == 0:
+            open_ports.append(port)
+
+    if verbose:
+        if fqdn == ip_address:
+            result = f"Open ports for {fqdn}\n"
+        else:
+            result = f"Open ports for {fqdn} ({ip_address})\n"
+
+        result += "PORT     SERVICE\n"
+        for port in open_ports:
+            service_name = common_ports.ports_and_services.get(port, "Unknown")
+            result += f"{str(port).ljust(9)}{service_name}\n"
+        return result.strip()  # Added strip() to avoid trailing newline
+    else:
+        return open_ports
+      
